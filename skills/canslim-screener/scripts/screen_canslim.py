@@ -203,11 +203,13 @@ def analyze_stock(
             else {"score": 50, "error": "No annual data"}
         )
 
+        # Daily bars shared by N (average-volume fallback) and S components
+        historical_prices = client.get_historical_prices(symbol, days=90)
+
         # N Component: Newness / New Highs
-        n_result = calculate_newness(quote[0])
+        n_result = calculate_newness(quote[0], historical_prices)
 
         # S Component: Supply/Demand (uses existing historical_prices data - no extra API call)
-        historical_prices = client.get_historical_prices(symbol, days=90)
         s_result = (
             calculate_supply_demand(historical_prices)
             if historical_prices
