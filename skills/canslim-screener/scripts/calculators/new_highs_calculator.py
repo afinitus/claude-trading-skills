@@ -52,6 +52,10 @@ def calculate_newness(quote: dict, historical_prices: Optional[dict] = None) -> 
     week_52_low = quote.get("yearLow")
     current_volume = quote.get("volume")
     avg_volume = quote.get("avgVolume")
+    if not avg_volume and historical_prices:
+        # FMP's /stable quote dropped the v3-only ``avgVolume`` field; derive a
+        # 50-day average from daily bars so breakout detection still works.
+        avg_volume = _average_daily_volume(historical_prices)
 
     if not current_price or not week_52_high:
         return {
@@ -90,6 +94,22 @@ def calculate_newness(quote: dict, historical_prices: Optional[dict] = None) -> 
         "interpretation": interpretation,
         "error": None,
     }
+
+
+def _average_daily_volume(historical_prices: dict, days: int = 50) -> Optional[float]:
+    """Average volume of the most recent ``days`` bars (most recent first)."""
+    bars = historical_prices.get("historical") if isinstance(historical_prices, dict) else None
+    if not bars:
+        return None
+    volumes = [
+        bar.get("volume")
+        for bar in bars[:days]
+        if isinstance(bar, dict)
+        and isinstance(bar.get("volume"), (int, float))
+        and not isinstance(bar.get("volume"), bool)
+        and bar.get("volume") > 0
+    ]
+    return sum(volumes) / len(volumes) if volumes else None
 
 
 def score_newness(distance_from_high_pct: float, breakout_detected: bool) -> int:
